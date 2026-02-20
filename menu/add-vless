@@ -3,7 +3,7 @@ domain=$(cat /etc/xray/domain)
 
 until [[ $user =~ ^[a-zA-Z0-9_]+$ && ${CLIENT_EXISTS} == '0' ]]; do
 echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
-echo -e "E[44;1;39m      Add Vless Account      E[0m"
+echo -e "\e[44;1;39m      Add Vless Account      \e[0m"
 echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
 
 read -rp "User: " -e user
@@ -12,7 +12,7 @@ CLIENT_EXISTS=$(grep -w $user /etc/xray/config.json | wc -l)
 if [[ ${CLIENT_EXISTS} == '1' ]]; then
 clear
 echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
-echo -e "E[44;1;39m      Add Vless Account      E[0m"
+echo -e "\e[44;1;39m      Add Vless Account      \e[0m"
 echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
 echo ""
 echo "A client with the specified name was already created, please choose another name."
@@ -34,7 +34,7 @@ vlesslink2="vless://${uuid}@${domain}:80?path=/vless&encryption=none&type=ws#${u
 systemctl restart xray
 clear
 echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
-echo -e "E[44;1;39m        Vless Account        E[0m"
+echo -e "\e[44;1;39m        Vless Account        \e[0m"
 echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
 echo -e "Remarks        : ${user}"
 echo -e "Domain         : ${domain}"

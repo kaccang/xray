@@ -4,7 +4,7 @@ NUMBER_OF_CLIENTS=$(grep -c -E "^#! " "/etc/xray/config.json")
 
 if [[ ${NUMBER_OF_CLIENTS} == '0' ]]; then
 echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
-echo -e "E[44;1;39m     ⇱ Delete Trojan Account ⇲     E[0m"
+echo -e "\e[44;1;39m     ⇱ Delete Trojan Account ⇲     \e[0m"
 echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
 echo -e "  • You Dont have any existing clients!"
 echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
@@ -15,7 +15,7 @@ fi
 
 clear
 echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
-echo -e "E[44;1;39m     ⇱ Delete Trojan Account ⇲     E[0m"
+echo -e "\e[44;1;39m     ⇱ Delete Trojan Account ⇲     \e[0m"
 echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
 grep -E "^#! " "/etc/xray/config.json" | cut -d ' ' -f 2-3 | column -t | sort | uniq | nl
 echo -e ""
@@ -28,13 +28,12 @@ menu
 else
 exp=$(grep -wE "^#! $user" "/etc/xray/config.json" | cut -d ' ' -f 3 | sort | uniq)
 
-# FIX: Menghapus baris komentar dan 1 baris JSON tepat di bawahnya secara presisi
 sed -i "/^#! $user $exp/{N;d;}" /etc/xray/config.json
 
 systemctl restart xray > /dev/null 2>&1
 clear
 echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
-echo -e "E[44;1;39m     ⇱ Delete Trojan Account ⇲     E[0m"
+echo -e "\e[44;1;39m     ⇱ Delete Trojan Account ⇲     \e[0m"
 echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
 echo -e "   • Accound Delete Successfully"
 echo -e ""
