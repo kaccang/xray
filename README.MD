@@ -1,0 +1,1 @@
+apt update -y && apt install screen wget -y && screen -R install bash -c 'wget -qO setup.sh https://raw.githubusercontent.com/kaccang/xray/main/setup.sh && chmod +x setup.sh && ./setup.sh'

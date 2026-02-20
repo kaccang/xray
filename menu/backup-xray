@@ -1,0 +1,203 @@
+#!/bin/bash
+# ==========================================
+# XRAY Ultimate Backup & Restore (S3 + Telegram)
+# ==========================================
+
+GREEN='\u001B[0;32m'
+RED='\u001B[0;31m'
+NC='\u001B[0m'
+CYAN='\u001B[0;36m'
+YELLOW='\u001B[1;33m'
+
+BACKUP_DIR="/root/xray-backup"
+ENV_FILE="/etc/xray/.env"
+ROLLBACK_FILE="/root/xray_rollback.tar.gz"
+
+mkdir -p "$BACKUP_DIR"
+
+# Cek dan Install Rclone & Zip jika belum ada
+if ! command -v rclone &> /dev/null; then
+    echo -e " [*] Menginstall Rclone..."
+    curl -sL https://rclone.org/install.sh | sudo bash > /dev/null 2>&1
+fi
+
+# Load Environment Variables (.env)
+if [ -f "$ENV_FILE" ]; then
+    source "$ENV_FILE"
+fi
+
+# Konfigurasi Rclone On-The-Fly (Tanpa perlu rclone config manual)
+export RCLONE_CONFIG_TEBI_TYPE="s3"
+export RCLONE_CONFIG_TEBI_PROVIDER="Other"
+export RCLONE_CONFIG_TEBI_ENV_AUTH="false"
+export RCLONE_CONFIG_TEBI_ACCESS_KEY_ID="$S3_ACCESS_KEY"
+export RCLONE_CONFIG_TEBI_SECRET_ACCESS_KEY="$S3_SECRET_KEY"
+export RCLONE_CONFIG_TEBI_ENDPOINT="$S3_ENDPOINT"
+export RCLONE_CONFIG_TEBI_ACL="public-read" # Agar URL bisa di-download via wget
+
+# ==========================================
+# FUNGSI BACKUP (Auto S3 & Tele)
+# ==========================================
+if [[ "$1" == "--auto" || "$1" == "--create" ]]; then
+    DATE=$(date +"%Y-%m-%d_%H-%M")
+    TAR_NAME="Backup_XRAY_$DATE.tar.gz"
+    FILE="$BACKUP_DIR/$TAR_NAME"
+    
+    # 1. Bikin Backup Lokal
+    tar -czf "$FILE" /etc/xray /etc/nginx/nginx.conf > /dev/null 2>&1
+    find "$BACKUP_DIR" -type f -name "*.tar.gz" -mtime +7 -exec rm {} ;
+    
+    # 2. Upload ke S3 & Kirim ke Telegram (Jika .env sudah diisi)
+    if [[ -n "$S3_BUCKET" && -n "$TELEGRAM_BOT_TOKEN" ]]; then
+        # Generate 16 Karakter Random untuk mengamankan path S3
+        RANDOM_PATH=$(head /dev/urandom | tr -dc a-zA-Z0-9 | head -c 16)
+        
+        # Upload via Rclone
+        rclone copy "$FILE" tebi:"$S3_BUCKET/xray/$RANDOM_PATH/" > /dev/null 2>&1
+        
+        if [ $? -eq 0 ]; then
+            # Bikin Direct Link
+            # Note: Ganti s3.tebi.io dengan custom domain s3 kamu jika ada
+            DIRECT_LINK="${S3_ENDPOINT#*//}/$S3_BUCKET/xray/$RANDOM_PATH/$TAR_NAME"
+            DIRECT_LINK="https://$DIRECT_LINK"
+            
+            # Kirim ke Telegram
+            MSG="📦 *Auto Backup XRAY Sukses!*%0A%0A🗓 Tanggal: $DATE%0A🗂 File: $TAR_NAME%0A%0A🔗 *Direct Link (Aman & Random):*%0A`$DIRECT_LINK`"
+            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+                -d chat_id="$TELEGRAM_CHAT_ID" \
+                -d parse_mode="Markdown" \
+                -d text="$MSG" > /dev/null 2>&1
+            
+            echo -e "${GREEN}[OK]${NC} Backup selesai & terkirim ke S3 + Telegram!"
+        else
+            echo -e "${RED}[FAIL]${NC} Gagal upload ke S3. Cek kredensial di .env"
+        fi
+    else
+        echo -e "${YELLOW}[WARN]${NC} Backup S3 & Telegram di-skip karena .env belum disetup."
+    fi
+    exit 0
+fi
+
+# ==========================================
+# FUNGSI PRE-RESTORE (Sapu Jagat Rollback)
+# ==========================================
+create_rollback() {
+    echo -e " [*] Membuat titik aman (Rollback point)..."
+    tar -czf "$ROLLBACK_FILE" /etc/xray /etc/nginx/nginx.conf > /dev/null 2>&1
+}
+
+apply_restore() {
+    local TARGET_FILE=$1
+    echo -e " [*] Mengekstrak data..."
+    tar -xzf "$TARGET_FILE" -C / > /dev/null 2>&1
+    
+    echo -e " [*] Merestart Services..."
+    systemctl restart nginx
+    systemctl restart xray
+    
+    # Sync ke Slave kalau ada
+    if command -v sync-vps &> /dev/null; then
+        sync-vps --run > /dev/null 2>&1 &
+    fi
+    echo -e "${GREEN}[OK]${NC} Data berhasil dipulihkan!"
+}
+
+# ==========================================
+# MENU INTERAKTIF
+# ==========================================
+clear
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${YELLOW}    ULTIMATE XRAY BACKUP & RESTORE        ${NC}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e " [1] Buat Backup Sekarang (Lokal + S3)"
+echo -e " [2] Restore dari Direct Link (URL)"
+echo -e " [3] Restore dari File Lokal"
+echo -e " [4] ⏪ EMERGENCY ROLLBACK (Batal Restore)"
+echo -e " [5] ⚙️  Setup .env (Kredensial S3 & Tele)"
+echo -e " [0] Keluar"
+echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+read -p " Pilih [0-5] : " opt
+
+case $opt in
+    1)
+        $0 --create
+        read -n 1 -s -r -p " Press any key to return..."
+        $0
+        ;;
+    2)
+        echo ""
+        read -p " Masukkan Direct Link Backup: " url_backup
+        if [[ -n "$url_backup" ]]; then
+            echo -e " [*] Mendownload backup dari URL..."
+            wget -qO /tmp/dl_backup.tar.gz "$url_backup"
+            if [ -s /tmp/dl_backup.tar.gz ]; then
+                create_rollback
+                apply_restore "/tmp/dl_backup.tar.gz"
+                rm -f /tmp/dl_backup.tar.gz
+            else
+                echo -e "${RED}[FAIL]${NC} Gagal download. Link mati/salah."
+            fi
+        fi
+        read -n 1 -s -r -p " Press any key to return..."
+        $0
+        ;;
+    3)
+        echo -e "
+${CYAN}Daftar File Lokal:${NC}"
+        ls -lh $BACKUP_DIR | awk '{print $5, $9}' | grep ".tar.gz"
+        echo ""
+        read -p " Ketik NAMA FILE: " filename
+        if [[ -f "$BACKUP_DIR/$filename" ]]; then
+            create_rollback
+            apply_restore "$BACKUP_DIR/$filename"
+        fi
+        read -n 1 -s -r -p " Press any key to return..."
+        $0
+        ;;
+    4)
+        if [[ -f "$ROLLBACK_FILE" ]]; then
+            echo -e "
+${YELLOW}[!] Mengembalikan ke kondisi sebelum Restore terakhir...${NC}"
+            apply_restore "$ROLLBACK_FILE"
+        else
+            echo -e "
+${RED}[FAIL]${NC} Belum ada file Rollback. Anda belum pernah melakukan Restore."
+        fi
+        read -n 1 -s -r -p " Press any key to return..."
+        $0
+        ;;
+    5)
+        clear
+        echo -e "${YELLOW}=== Setup Kredensial (.env) ===${NC}"
+        echo -e "Kosongkan lalu ENTER jika tidak ingin diubah.
+"
+        
+        read -p " S3 Access Key : " in_ak
+        read -p " S3 Secret Key : " in_sk
+        read -p " S3 Endpoint (contoh: https://s3.tebi.io) : " in_ep
+        read -p " S3 Bucket Name : " in_bk
+        read -p " Telegram Bot Token : " in_bt
+        read -p " Telegram Chat ID : " in_ci
+        
+        # Buat file .env baru
+        > "$ENV_FILE"
+        [[ -n "$in_ak" ]] && echo "S3_ACCESS_KEY="$in_ak"" >> "$ENV_FILE" || echo "S3_ACCESS_KEY="$S3_ACCESS_KEY"" >> "$ENV_FILE"
+        [[ -n "$in_sk" ]] && echo "S3_SECRET_KEY="$in_sk"" >> "$ENV_FILE" || echo "S3_SECRET_KEY="$S3_SECRET_KEY"" >> "$ENV_FILE"
+        [[ -n "$in_ep" ]] && echo "S3_ENDPOINT="$in_ep"" >> "$ENV_FILE" || echo "S3_ENDPOINT="$S3_ENDPOINT"" >> "$ENV_FILE"
+        [[ -n "$in_bk" ]] && echo "S3_BUCKET="$in_bk"" >> "$ENV_FILE" || echo "S3_BUCKET="$S3_BUCKET"" >> "$ENV_FILE"
+        [[ -n "$in_bt" ]] && echo "TELEGRAM_BOT_TOKEN="$in_bt"" >> "$ENV_FILE" || echo "TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN"" >> "$ENV_FILE"
+        [[ -n "$in_ci" ]] && echo "TELEGRAM_CHAT_ID="$in_ci"" >> "$ENV_FILE" || echo "TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID"" >> "$ENV_FILE"
+        
+        chmod 600 "$ENV_FILE"
+        echo -e "
+${GREEN}[OK]${NC} .env berhasil disimpan!"
+        read -n 1 -s -r -p " Press any key to return..."
+        $0
+        ;;
+    0)
+        exit 0
+        ;;
+    *)
+        $0
+        ;;
+esac

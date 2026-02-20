@@ -1,0 +1,85 @@
+#!/bin/bash
+# ==========================================
+# Multi-VPS Sync Manager (Master-Slave)
+# ==========================================
+
+CONF_FILE="/etc/xray/sync_slave.conf"
+
+# --- FUNGSI 1: Eksekusi Sinkronisasi (Dipanggil otomatis oleh script add/del/renew) ---
+if [[ "$1" == "--run" ]]; then
+    if [ ! -f "$CONF_FILE" ]; then
+        exit 0 # Kalau belum di-setup, diam saja (jalan normal sbg single VPS)
+    fi
+    
+    SLAVE_IP=$(cat "$CONF_FILE")
+    
+    # Sinkronisasi secara diam-diam (background)
+    rsync -aq --checksum /etc/xray/config.json root@$SLAVE_IP:/etc/xray/config.json
+    rsync -aq --checksum /etc/xray/xray.crt root@$SLAVE_IP:/etc/xray/xray.crt
+    rsync -aq --checksum /etc/xray/xray.key root@$SLAVE_IP:/etc/xray/xray.key
+    
+    # Restart XRay di Slave
+    sleep 15
+    ssh -q -o StrictHostKeyChecking=no root@$SLAVE_IP "systemctl restart xray"
+    exit 0
+fi
+
+# --- FUNGSI 2: Setup Wizard (Dipanggil dari Menu Hidden 99) ---
+clear
+echo -e "\u001B[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
+echo -e "\u001B[1;33m       MULTI-VPS SETUP (MASTER MODE)      \u001B[0m"
+echo -e "\u001B[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
+echo -e " VPS ini akan menjadi MASTER."
+echo -e " Pastikan VPS Slave sudah terinstall XRay polosan."
+echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+read -rp " Masukkan IP VPS Slave   : " slave_ip
+read -rp " Masukkan Password Root  : " slave_pass
+
+if [[ -z "$slave_ip" || -z "$slave_pass" ]]; then
+    echo " Error: IP dan Password tidak boleh kosong!"
+    sleep 2
+    menu
+fi
+
+# Install dependencies yang dibutuhkan untuk auto-login
+apt-get install -y sshpass rsync > /dev/null 2>&1
+
+echo -e "
+ [*] Setup SSH Key (No Password Login)..."
+if [ ! -f ~/.ssh/id_rsa ]; then
+    ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa > /dev/null 2>&1
+fi
+
+# Melempar SSH Key ke Slave pakai sshpass (otomatis ngetik password)
+sshpass -p "$slave_pass" ssh-copy-id -o StrictHostKeyChecking=no root@$slave_ip > /dev/null 2>&1
+
+if [ $? -eq 0 ]; then
+    echo -e " [${GREEN}OK${NC}] Koneksi Master -> Slave Berhasil!"
+    
+    # Simpan IP Slave
+    echo "$slave_ip" > "$CONF_FILE"
+    
+    echo -e " [*] Mengintegrasikan Sync ke Script Menu..."
+    # Mencari semua file di /usr/bin/ yang berawalan add-, del-, renew-
+    for file in /usr/bin/add-* /usr/bin/del-* /usr/bin/renew-*; do
+        if [ -f "$file" ]; then
+            # Cek apakah sudah pernah disuntik sebelumnya
+            if ! grep -q "sync-vps --run" "$file"; then
+                # Suntik perintah sync-vps --run tepat di bawah systemctl restart xray
+                sed -i '/systemctl restart xray/a     sync-vps --run > /dev/null 2>&1 &' "$file"
+            fi
+        fi
+    done
+    
+    echo -e " [${GREEN}OK${NC}] Integrasi Selesai!"
+    echo -e "
+ Mulai sekarang, setiap ada pembuatan/penghapusan akun,"
+    echo -e " config.json otomatis dikirim ke $slave_ip secara instan."
+else
+    echo -e " [${RED}FAIL${NC}] Gagal connect ke Slave. Cek IP/Password!"
+fi
+
+echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+read -n 1 -s -r -p " Press any key to back on menu"
+menu

@@ -1,0 +1,80 @@
+#!/bin/bash
+# ==========================================
+# Auto Kill Expired Accounts (XRAY)
+# Designed for Cronjob
+# ==========================================
+
+CONF_FILE="/etc/xray/config.json"
+NOW=$(date +"%Y-%m-%d")
+RESTART_NEEDED=0
+
+# ==========================================
+# 1. Auto Remove VMESS (###)
+# ==========================================
+data_vmess=($(grep '^###' "$CONF_FILE" | cut -d ' ' -f 2 | sort | uniq))
+for user in "${data_vmess[@]}"; do
+    exp=$(grep -w "^### $user" "$CONF_FILE" | cut -d ' ' -f 3 | sort | uniq)
+    
+    # Menghitung selisih hari
+    d1=$(date -d "$exp" +%s)
+    d2=$(date -d "$NOW" +%s)
+    sisa_hari=$(( (d1 - d2) / 86400 ))
+    
+    if [[ "$sisa_hari" -le "0" ]]; then
+        echo "Deleting expired VMESS: $user"
+        # Menghapus baris komentar dan 1 baris config client di bawahnya dengan presisi
+        sed -i "/^### $user $exp/{N;d;}" "$CONF_FILE"
+        RESTART_NEEDED=1
+    fi
+done
+
+# ==========================================
+# 2. Auto Remove VLESS (#&)
+# ==========================================
+data_vless=($(grep '^#&' "$CONF_FILE" | cut -d ' ' -f 2 | sort | uniq))
+for user in "${data_vless[@]}"; do
+    exp=$(grep -w "^#& $user" "$CONF_FILE" | cut -d ' ' -f 3 | sort | uniq)
+    
+    d1=$(date -d "$exp" +%s)
+    d2=$(date -d "$NOW" +%s)
+    sisa_hari=$(( (d1 - d2) / 86400 ))
+    
+    if [[ "$sisa_hari" -le "0" ]]; then
+        echo "Deleting expired VLESS: $user"
+        sed -i "/^#& $user $exp/{N;d;}" "$CONF_FILE"
+        RESTART_NEEDED=1
+    fi
+done
+
+# ==========================================
+# 3. Auto Remove TROJAN (#!)
+# ==========================================
+data_trojan=($(grep '^#!' "$CONF_FILE" | cut -d ' ' -f 2 | sort | uniq))
+for user in "${data_trojan[@]}"; do
+    exp=$(grep -w "^#! $user" "$CONF_FILE" | cut -d ' ' -f 3 | sort | uniq)
+    
+    d1=$(date -d "$exp" +%s)
+    d2=$(date -d "$NOW" +%s)
+    sisa_hari=$(( (d1 - d2) / 86400 ))
+    
+    if [[ "$sisa_hari" -le "0" ]]; then
+        echo "Deleting expired TROJAN: $user"
+        sed -i "/^#! $user $exp/{N;d;}" "$CONF_FILE"
+        RESTART_NEEDED=1
+    fi
+done
+
+# ==========================================
+# 4. Restart Services (Hanya jika ada yang dihapus)
+# ==========================================
+if [[ $RESTART_NEEDED -eq 1 ]]; then
+    echo "Changes detected. Restarting XRay..."
+    systemctl restart xray > /dev/null 2>&1
+    
+    # Trigger sinkronisasi ke Slave jika Multi-VPS diaktifkan
+    if command -v sync-vps &> /dev/null; then
+        sync-vps --run > /dev/null 2>&1 &
+    fi
+else
+    echo "No expired accounts today."
+fi
