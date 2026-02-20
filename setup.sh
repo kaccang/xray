@@ -70,6 +70,11 @@ chmod 777 /var/log/xray/*
 # Mengubah default path konfigurasi systemd XRay dari /usr/local/etc ke /etc/
 sed -i 's|/usr/local/etc/xray/config.json|/etc/xray/config.json|g' /etc/systemd/system/xray.service
 
+# MENGATASI DROP-IN OVERRIDE (Biang kerok yang bikin path nggak mau berubah)
+if [ -f "/etc/systemd/system/xray.service.d/10-donot_touch_single_conf.conf" ]; then
+    sed -i 's|/usr/local/etc/xray/config.json|/etc/xray/config.json|g' /etc/systemd/system/xray.service.d/10-donot_touch_single_conf.conf
+fi
+
 echo -e "\u001B[1;32m[5/7] Download Optimized Configurations & Menus...\u001B[0m"
 # GANTI LINK DI BAWAH INI DENGAN LINK RAW GITHUB KAMU
 REPO_CONF="https://raw.githubusercontent.com/kaccang/xray/main/config"
