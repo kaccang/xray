@@ -1,0 +1,114 @@
+#!/bin/bash
+# ==========================================
+# Colors
+RED='\u001B[0;31m'
+NC='\u001B[0m'
+GREEN='\u001B[0;32m'
+BLUE='\u001B[0;34m'
+CYAN='\u001B[0;36m'
+YELLOW='\u001B[1;33m'
+# ==========================================
+
+clear
+
+# Cek Status Service (Nginx & XRay)
+stat_nginx=$(systemctl is-active nginx)
+if [[ $stat_nginx == "active" ]]; then
+    status_n="${GREEN}RUNNING${NC}"
+else
+    status_n="${RED}STOPPED${NC}"
+fi
+
+stat_xray=$(systemctl is-active xray)
+if [[ $stat_xray == "active" ]]; then
+    status_x="${GREEN}RUNNING${NC}"
+else
+    status_x="${RED}STOPPED${NC}"
+fi
+
+# Cek Bandwidth (vnstat)
+if command -v vnstat &> /dev/null; then
+    BW_RX=$(vnstat -m --oneline | awk -F ';' '{print $10}' | sed 's/ //g')
+    BW_TX=$(vnstat -m --oneline | awk -F ';' '{print $11}' | sed 's/ //g')
+    BW_TOTAL=$(vnstat -m --oneline | awk -F ';' '{print $12}' | sed 's/ //g')
+    bw_text="Total: ${GREEN}${BW_TOTAL}${NC} (↓ $BW_RX | ↑ $BW_TX)"
+else
+    bw_text="${RED}vnstat is not installed${NC}"
+fi
+
+# ==========================================
+# Tampilan Menu Utama
+# ==========================================
+echo -e "${BLUE}┌──────────────────────────────────────────────┐${NC}"
+echo -e "${BLUE}│${NC}            ${CYAN}XRAY VPN SERVER MENU${NC}              ${BLUE}│${NC}"
+echo -e "${BLUE}└──────────────────────────────────────────────┘${NC}"
+echo -e " Bandwidth : $bw_text"
+echo -e " Nginx     : $status_n"
+echo -e " XRay Core : $status_x"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+# VLESS Block
+echo -e " ${YELLOW}[01]${NC} Add Vless     ${YELLOW}[03]${NC} Renew Vless"
+echo -e " ${YELLOW}[02]${NC} Delete Vless  ${YELLOW}[04]${NC} Check Vless"
+echo -e ""
+# VMESS Block
+echo -e " ${YELLOW}[05]${NC} Add Vmess     ${YELLOW}[07]${NC} Renew Vmess"
+echo -e " ${YELLOW}[06]${NC} Delete Vmess  ${YELLOW}[08]${NC} Check Vmess"
+echo -e ""
+# TROJAN Block
+echo -e " ${YELLOW}[09]${NC} Add Trojan    ${YELLOW}[11]${NC} Renew Trojan"
+echo -e " ${YELLOW}[10]${NC} Delete Trojan ${YELLOW}[12]${NC} Check Trojan"
+
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e " ${YELLOW}[13]${NC} Renew Domain Certificate"
+echo -e " ${YELLOW}[14]${NC} Restart Nginx & XRay Services"
+echo -e " ${YELLOW}[15]${NC} Reboot VPS"
+echo -e " ${RED}[ 0]${NC} Exit Menu"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+read -p " Select menu [0-15] : " opt
+
+case $opt in
+    1|01) clear ; add-vless ;;
+    2|02) clear ; del-vless ;;
+    3|03) clear ; renew-vless ;;
+    4|04) clear ; cek-vless ;;
+    
+    5|05) clear ; add-ws ;;
+    6|06) clear ; del-ws ;;
+    7|07) clear ; renew-ws ;;
+    8|08) clear ; cek-ws ;;
+    
+    9|09) clear ; add-tr ;;
+    10) clear ; del-tr ;;
+    11) clear ; renew-tr ;;
+    12) clear ; cek-tr ;;
+    
+    13) clear ; cert ;; # Sesuaikan jika nama script cert mu beda
+    
+    14) 
+        clear
+        echo -e "${GREEN}Restarting Nginx...${NC}"
+        systemctl restart nginx
+        echo -e "${GREEN}Restarting XRay...${NC}"
+        systemctl restart xray
+        echo -e "${GREEN}Services Restarted Successfully!${NC}"
+        sleep 2
+        menu
+        ;;
+    15) 
+        clear
+        echo -e "${RED}Rebooting VPS...${NC}"
+        sleep 1
+        reboot
+        ;;
+    0) 
+        clear
+        exit 0 
+        ;;
+    *)
+        echo -e "${RED}Invalid input! Please select a valid number.${NC}"
+        sleep 1
+        menu
+        ;;
+esac

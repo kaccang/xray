@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# ==========================================
+# Color
+red='e[1;31m'
+green='e[0;32m'
+NC='e[0m'
+# ==========================================
+
+clear
+# Ambil domain HANYA dari /etc/xray/domain
+domain=$(cat /etc/xray/domain)
+
+echo -e "[ ${green}INFO${NC} ] Start " 
+sleep 0.5
+
+# Matikan Nginx karena acme.sh standalone butuh port 80 kosong
+systemctl stop nginx
+
+# Cek apakah port 80 masih dipakai service lain
+Cek=$(lsof -i:80 | cut -d' ' -f1 | awk 'NR==2 {print $1}')
+if [[ ! -z "$Cek" ]]; then
+    sleep 1
+    echo -e "[ ${red}WARNING${NC} ] Detected port 80 used by $Cek " 
+    systemctl stop $Cek
+    sleep 2
+    echo -e "[ ${green}INFO${NC} ] Processing to stop $Cek " 
+    sleep 1
+fi
+
+echo -e "[ ${green}INFO${NC} ] Starting renew cert for domain: $domain" 
+sleep 2
+
+# Generate & Install Cert (pakai --force agar aman saat ganti domain baru)
+/root/.acme.sh/acme.sh --set-default-ca --server letsencrypt
+/root/.acme.sh/acme.sh --issue -d $domain --standalone -k ec-256 --force
+/root/.acme.sh/acme.sh --installcert -d $domain --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc --force
+
+echo -e "[ ${green}INFO${NC} ] Renew cert done... " 
+sleep 2
+
+# Kembalikan service yang tadi dimatikan (jika ada)
+if [[ ! -z "$Cek" ]]; then
+    echo -e "[ ${green}INFO${NC} ] Starting service $Cek " 
+    systemctl start $Cek
+    sleep 2
+fi
+
+# Nyalakan kembali Nginx dan Restart Xray agar baca cert baru
+systemctl start nginx
+systemctl restart xray
+
+echo -e "[ ${green}INFO${NC} ] All finished... " 
+sleep 0.5
+echo ""
+read -n 1 -s -r -p "Press any key to back on menu"
+menu
