@@ -8,8 +8,7 @@ echo -e "\e[44;1;39m      ⇱ Delete Vless Account ⇲      \e[0m"
 echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
 echo -e "  • You Dont have any existing clients!"
 echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
-echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+read -n 1 -s -r -p "Press any key to back on menu"
 menu
 fi
 
@@ -17,30 +16,38 @@ clear
 echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
 echo -e "\e[44;1;39m      ⇱ Delete Vless Account ⇲      \e[0m"
 echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
-grep -E "^#& " "/etc/xray/config.json" | cut -d ' ' -f 2-3 | column -t | sort | uniq | nl
-echo -e ""
-echo -e "  • [NOTE] Press any key to back on menu"
-echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
-read -rp "   Input Username : " user
 
-if [ -z "$user" ]; then
+grep -E "^#& " "/etc/xray/config.json" | cut -d ' ' -f 2-3 | column -t | sort | uniq
+
+echo ""
+echo -e "  • Input Username (not number)"
+echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
+read -rp "Input Username : " user
+
+if [[ "$user" =~ ^[0-9]+$ ]]; then
+echo "Please input Username, not number!"
+sleep 1
 menu
-else
-exp=$(grep -wE "^#& $user" "/etc/xray/config.json" | cut -d ' ' -f 3 | sort | uniq)
+fi
+
+exp=$(grep -wE "^#& $user" "/etc/xray/config.json" | cut -d ' ' -f 3)
+
+if [[ -z "$exp" ]]; then
+echo "Username not found!"
+sleep 1
+menu
+fi
 
 sed -i "/^#& $user $exp/{N;d;}" /etc/xray/config.json
-
 systemctl restart xray > /dev/null 2>&1
+
 clear
 echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
 echo -e "\e[44;1;39m      ⇱ Delete Vless Account ⇲      \e[0m"
 echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
-echo -e "   • Accound Delete Successfully"
-echo -e ""
-echo -e "   • Client Name : $user"
-echo -e "   • Expired On  : $exp"
+echo -e "• Account Delete Successfully"
+echo -e "• Client Name : $user"
+echo -e "• Expired On  : $exp"
 echo -e "\u001B[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
-echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+read -n 1 -s -r -p "Press any key to back on menu"
 menu
-fi
