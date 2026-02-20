@@ -29,6 +29,11 @@ apt-get -yq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-con
 systemctl enable vnstat
 systemctl start vnstat
 
+# Setup Info Server & Timezone
+timedatectl set-timezone Asia/Jakarta
+curl -s ipinfo.io/org | cut -d ' ' -f 2- > /etc/xray/isp
+curl -s ipinfo.io/city > /etc/xray/city
+
 echo -e "\u001B[1;32m[2/7] Setup BBR & Tuning TCP Kernel...\u001B[0m"
 # Menggunakan sysctl.d agar lebih rapi dan aman
 cat > /etc/sysctl.d/99-xray-bbr.conf << EOF
@@ -62,6 +67,9 @@ touch /var/log/xray/access.log
 touch /var/log/xray/error.log
 chmod 777 /var/log/xray/*
 
+# Mengubah default path konfigurasi systemd XRay dari /usr/local/etc ke /etc/
+sed -i 's|/usr/local/etc/xray/config.json|/etc/xray/config.json|g' /etc/systemd/system/xray.service
+
 echo -e "\u001B[1;32m[5/7] Download Optimized Configurations & Menus...\u001B[0m"
 # GANTI LINK DI BAWAH INI DENGAN LINK RAW GITHUB KAMU
 REPO_CONF="https://raw.githubusercontent.com/kaccang/xray/main/config"
@@ -72,6 +80,9 @@ rm -f /etc/nginx/nginx.conf
 rm -f /etc/xray/config.json
 curl -sL ${REPO_CONF}/nginx.conf -o /etc/nginx/nginx.conf
 curl -sL ${REPO_CONF}/config.json -o /etc/xray/config.json
+
+# Mengganti domain pada Nginx Configuration secara dinamis
+sed -i "s/server_name .*/server_name $domain;/" /etc/nginx/nginx.conf
 
 # Download Menu & Tools
 cd /usr/bin/
@@ -95,6 +106,17 @@ wget -qO xp "${REPO_MENU}/xp"
 
 chmod +x menu add-ws del-ws renew-ws cek-ws add-vless del-vless renew-vless cek-vless add-tr del-tr renew-tr cek-tr cert backup-xray sync-vps xp
 cd ~
+
+# Setup Menu Autostart di .bashrc untuk interaktif shell
+if ! grep -q "menu" ~/.bashrc; then
+cat << 'EOF' >> ~/.bashrc
+
+if [[ $- == *i* ]]; then
+    clear
+    menu
+fi
+EOF
+fi
 
 echo -e "\u001B[1;32m[6/7] Setting Up Cronjobs...\u001B[0m"
 
