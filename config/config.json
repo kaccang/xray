@@ -15,7 +15,10 @@
     "levels": {
       "0": {
         "statsUserDownlink": true,
-        "statsUserUplink": true
+        "statsUserUplink": true,
+        "bufferSize": 64,
+        "connIdle": 300,
+        "handshake": 10
       }
     },
     "system": {

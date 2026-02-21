@@ -15,7 +15,8 @@ echo "$domain" > /root/domain
 mkdir -p /etc/xray
 echo "$domain" > /etc/xray/domain
 
-echo -e "\n\u001B[1;32m[1/7] Mengupdate OS & Install Dependencies...\u001B[0m"
+echo -e "
+\u001B[1;32m[1/7] Mengupdate OS & Install Dependencies...\u001B[0m"
 
 apt-get update -y
 apt-get -y upgrade
@@ -33,19 +34,57 @@ curl -s ipinfo.io/city > /etc/xray/city
 
 echo -e "\u001B[1;32m[2/7] Setup BBR & Tuning TCP Kernel...\u001B[0m"
 # Menggunakan sysctl.d agar lebih rapi dan aman
-cat > /etc/sysctl.d/99-xray-bbr.conf << EOF
-# TCP BBR
+cat > /etc/sysctl.d/99-xray-bbr.conf << 'EOF'
+# =============================================
+# TCP BBR (WAJIB)
+# =============================================
 net.core.default_qdisc = fq
 net.ipv4.tcp_congestion_control = bbr
 
-# TCP Optimizations for High Concurrent Connections
+# =============================================
+# TCP Connection Optimization
+# =============================================
 net.ipv4.tcp_tw_reuse = 1
 net.ipv4.tcp_fin_timeout = 15
 net.ipv4.ip_local_port_range = 1024 65535
 net.core.somaxconn = 65535
 net.core.netdev_max_backlog = 65535
-net.ipv4.tcp_max_tw_buckets = 6000
 net.ipv4.tcp_syncookies = 1
+
+# Naikkan dari 6000 ke 32000 (biar 400 user gak trigger kernel drop)
+net.ipv4.tcp_max_tw_buckets = 32000
+net.ipv4.tcp_max_syn_backlog = 65535
+
+# =============================================
+# TCP Buffer — KRITIS untuk RAM 4GB!
+# =============================================
+net.ipv4.tcp_rmem = 4096 87380 2097152
+net.ipv4.tcp_wmem = 4096 65536 2097152
+net.core.rmem_max = 2097152
+net.core.wmem_max = 2097152
+
+# =============================================
+# Keepalive — Bunuh Zombie Connection
+# =============================================
+net.ipv4.tcp_keepalive_time = 600
+net.ipv4.tcp_keepalive_intvl = 30
+net.ipv4.tcp_keepalive_probes = 5
+
+# =============================================
+# TCP Fast Open — Manfaatkan CPU EPYC
+# =============================================
+net.ipv4.tcp_fastopen = 3
+
+# =============================================
+# File Descriptor — WAJIB untuk proxy server
+# =============================================
+fs.file-max = 1000000
+
+# =============================================
+# Memory — Cegah OOM Kill
+# =============================================
+vm.swappiness = 10
+vm.min_free_kbytes = 65536
 EOF
 sysctl --system > /dev/null 2>&1
 
@@ -139,6 +178,16 @@ chmod 644 /etc/cron.d/xray_cert_renew
 systemctl restart cron
 
 echo -e "\u001B[1;32m[7/7] Restarting Services...\u001B[0m"
+
+# --- TAMBAHAN FIX NGINX SYSTEMD LIMITNOFILE ---
+mkdir -p /etc/systemd/system/nginx.service.d
+cat > /etc/systemd/system/nginx.service.d/override.conf << EOF
+[Service]
+LimitNOFILE=1000000
+LimitNPROC=65535
+EOF
+# ----------------------------------------------
+
 systemctl daemon-reload
 systemctl restart nginx
 systemctl enable nginx
@@ -152,7 +201,7 @@ echo -e "\u001B[1;36m━━━━━━━━━━━━━━━━━━━�
 echo -e " Domain     : $domain"
 echo -e " Nginx      : Port 80, 443"
 echo -e " XRay Core  : Version v26.2.6"
-echo -e " TCP Tuning : BBR Enabled"
+echo -e " TCP Tuning : BBR Enabled & Optimized"
 echo -e " Cronjobs   : Auto XP (00:00), Auto Backup (02:00), Auto Cert (Tgl 1)"
 echo -e "\u001B[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
 echo -e " Ketik \u001B[1;32mmenu\u001B[0m untuk memulai manajemen VPS."
