@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# ====== CONFIG ======
+TELEGRAM_BOT_TOKEN="ISI_TOKEN_BOT_LU"
+TELEGRAM_CHAT_ID="ISI_CHAT_ID_LU"
+S3_REMOTE="S3:backup-vps"   # sesuaikan dengan remote rclone lu
+
+# ====================
+
+DATE=$(date +%F-%H%M)
+BACKUP_NAME="xray-backup-$DATE.zip"
+TMP="/tmp/$BACKUP_NAME"
+
+# Zip folder /etc/xray
+zip -r $TMP /etc/xray > /dev/null
+
+# Upload ke S3
+rclone copy $TMP $S3_REMOTE
+
+# Kirim ke Telegram sebagai FILE
+curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendDocument" \
+  -F chat_id="$TELEGRAM_CHAT_ID" \
+  -F document=@"$TMP" \
+  -F caption="Backup XRAY $DATE" \
+  > /dev/null
+
+# Hapus file sementara
+rm -f $TMP

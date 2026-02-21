@@ -4,10 +4,6 @@
 # Core Version: v26.2.6
 # ==========================================
 
-# Mencegah pop-up interaktif saat instalasi package (grub, dll)
-export DEBIAN_FRONTEND=noninteractive
-export APT_LISTCHANGES_FRONTEND=none
-
 clear
 echo -e "\u001B[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
 echo -e "\u001B[1;32m      XRAY SERVER AUTO INSTALLER          \u001B[0m"
@@ -19,12 +15,13 @@ echo "$domain" > /root/domain
 mkdir -p /etc/xray
 echo "$domain" > /etc/xray/domain
 
-echo -e "
-\u001B[1;32m[1/7] Mengupdate OS & Install Dependencies...\u001B[0m"
-# Install dengan argumen force agar 100% yes dan default
-apt-get update -yq
-apt-get -yq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade
-apt-get -yq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install nginx curl wget unzip jq vnstat lsof net-tools iptables socat cron rclone
+echo -e "\n\u001B[1;32m[1/7] Mengupdate OS & Install Dependencies...\u001B[0m"
+
+apt-get update -y
+apt-get -y upgrade
+apt-get -y install nginx curl wget unzip jq vnstat lsof net-tools iptables socat cron rclone snap snapd
+
+snap install speedtest
 
 systemctl enable vnstat
 systemctl start vnstat
