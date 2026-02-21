@@ -3,16 +3,21 @@
 # ====== CONFIG ======
 TELEGRAM_BOT_TOKEN="ISI_TOKEN_BOT_LU"
 TELEGRAM_CHAT_ID="ISI_CHAT_ID_LU"
-S3_REMOTE="S3:backup-vps"   # sesuaikan dengan remote rclone lu
-
+S3_REMOTE="xrayonly"   # sesuaikan dengan remote rclone lu
 # ====================
 
 DATE=$(date +%F-%H%M)
 BACKUP_NAME="xray-backup-$DATE.zip"
 TMP="/tmp/$BACKUP_NAME"
 
-# Zip folder /etc/xray
-zip -r $TMP /etc/xray > /dev/null
+# Stop vnstat biar DB konsisten (optional tapi disarankan)
+systemctl stop vnstat
+
+# Zip folder /etc/xray + database vnstat
+zip -r $TMP /etc/xray /var/lib/vnstat > /dev/null
+
+# Start lagi vnstat
+systemctl start vnstat
 
 # Upload ke S3
 rclone copy $TMP $S3_REMOTE
@@ -21,7 +26,7 @@ rclone copy $TMP $S3_REMOTE
 curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendDocument" \
   -F chat_id="$TELEGRAM_CHAT_ID" \
   -F document=@"$TMP" \
-  -F caption="Backup XRAY $DATE" \
+  -F caption="Backup XRAY + VNSTAT $DATE" \
   > /dev/null
 
 # Hapus file sementara
