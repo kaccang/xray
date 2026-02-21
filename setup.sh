@@ -20,7 +20,7 @@ echo -e "
 
 apt-get update -y
 apt-get -y upgrade
-apt-get -y install nginx curl wget unzip jq vnstat lsof net-tools iptables socat cron rclone snap snapd
+apt-get -y install nginx zip curl wget unzip jq vnstat lsof net-tools iptables socat cron rclone snap snapd
 
 snap install speedtest
 
@@ -148,15 +148,28 @@ wget -qO xp "${REPO_MENU}/xp"
 chmod +x menu add-ws del-ws renew-ws cek-ws add-vless del-vless renew-vless cek-vless add-tr del-tr renew-tr cek-tr cert backup-xray sync-vps xp
 cd ~
 
-# Setup Menu Autostart di .bashrc untuk interaktif shell
-if ! grep -q "menu" ~/.bashrc; then
-cat << 'EOF' >> ~/.bashrc
+# Pasang autostart menu di .profile (tanpa cek)
+cat << 'EOF' >> ~/.profile
 
-if [[ $- == *i* ]]; then
+if [ -n "$SSH_CLIENT" ] && [ -x /usr/bin/menu ]; then
     clear
-    menu
+    /usr/bin/menu
 fi
 EOF
+
+# Buat SWAP 2GB jika belum ada swap aktif
+if [ -z "$(swapon --show --noheadings)" ]; then
+    echo "No active swap found, creating 2G swapfile..."
+    fallocate -l 2G /swapfile
+    chmod 600 /swapfile
+    mkswap /swapfile
+    swapon /swapfile
+    if ! grep -q '^/swapfile ' /etc/fstab; then
+        echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    fi
+    echo "Swap 2G created and enabled."
+else
+    echo "Swap already active, skip creating swapfile."
 fi
 
 echo -e "\u001B[1;32m[6/7] Setting Up Cronjobs...\u001B[0m"
