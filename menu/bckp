@@ -3,7 +3,7 @@
 # ====== CONFIG ======
 TELEGRAM_BOT_TOKEN="ISI_TOKEN_BOT_LU"
 TELEGRAM_CHAT_ID="ISI_CHAT_ID_LU"
-S3_REMOTE="xrayonly"   # sesuaikan dengan remote rclone lu
+S3_REMOTE="xrayonly:xrayonly/backup"  # sesuaikan dengan remote rclone lu
 # ====================
 
 DATE=$(date +%F-%H%M)

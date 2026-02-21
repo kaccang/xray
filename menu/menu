@@ -113,7 +113,9 @@ echo -e " ${YELLOW}[15]${NC} Reboot VPS"
 echo -e "  ${RED}[0]${NC} Exit Menu"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
-read -p " Select menu [0-15] : " opt
+if ! read -p " Select menu [0-15] : " opt; then
+    exit 0
+fi
 
 case $opt in
     1) clear ; add-ws ;;
