@@ -47,13 +47,12 @@ else
 fi
 
 # ==========================================
-# 3. Cek Status Multi-VPS (Validasi SSH Login)
+# 3. Cek Status Multi-VPS
 # ==========================================
 CONF_SLAVE="/etc/xray/sync_slave.conf"
 if [ -s "$CONF_SLAVE" ]; then
     SLAVE_IP=$(cat "$CONF_SLAVE" | head -n1 | awk '{print $1}')
     if [[ -n "$SLAVE_IP" && "$SLAVE_IP" != "none" && "$SLAVE_IP" != "0.0.0.0" ]]; then
-        # Tes autentikasi SSH langsung (BatchMode=yes menolak prompt password jika key gagal)
         if ssh -o BatchMode=yes -o ConnectTimeout=2 root@$SLAVE_IP "exit" >/dev/null 2>&1; then
             status_slave="${GREEN}CONNECTED${NC}"
         else
@@ -67,11 +66,11 @@ else
 fi
 
 # ==========================================
-# 4. Hitung Jumlah Akun XRay
+# 4. Hitung Jumlah Akun XRay (FIXED)
 # ==========================================
-VMESS_COUNT=$(grep -c '^### ' /etc/xray/config.json 2>/dev/null || echo "0")
-VLESS_COUNT=$(grep -c '^#& ' /etc/xray/config.json 2>/dev/null || echo "0")
-TROJAN_COUNT=$(grep -c '^#! ' /etc/xray/config.json 2>/dev/null || echo "0")
+VMESS_COUNT=$(grep -c '^### ' /etc/xray/config.json 2>/dev/null); VMESS_COUNT=${VMESS_COUNT:-0}
+VLESS_COUNT=$(grep -c '^#& ' /etc/xray/config.json 2>/dev/null); VLESS_COUNT=${VLESS_COUNT:-0}
+TROJAN_COUNT=$(grep -c '^#! ' /etc/xray/config.json 2>/dev/null); TROJAN_COUNT=${TROJAN_COUNT:-0}
 
 # ==========================================
 # Tampilan Menu Utama
@@ -85,9 +84,9 @@ echo -e " Nginx Service  : $status_n"
 echo -e " XRay Service   : $status_x"
 echo -e " VPS Slave Sync : $status_slave"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "            ${WHITE}XRAY ACCOUNT STATUS${NC}             "
-printf "  VMess: ${GREEN}%-3s${NC} | VLess: ${YELLOW}%-3s${NC} | Trojan: ${CYAN}%-3s${NC} 
-" "$VMESS_COUNT" "$VLESS_COUNT" "$TROJAN_COUNT"
+echo -e "            ${WHITE}XRAY ACCOUNT STATUS${NC}"
+printf "  VMess : ${GREEN}%-3s${NC} | VLess : ${YELLOW}%-3s${NC} | Trojan : ${CYAN}%-3s${NC}\n" \
+"$VMESS_COUNT" "$VLESS_COUNT" "$TROJAN_COUNT"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e " ${CYAN}[ VMESS MENU ]${NC}"
 echo -e "  ${YELLOW}[1]${NC} Create VMess Account"
@@ -121,20 +120,20 @@ case $opt in
     2) clear ; del-ws ;;
     3) clear ; renew-ws ;;
     4) clear ; cek-ws ;;
-    
+
     5) clear ; add-vless ;;
     6) clear ; del-vless ;;
     7) clear ; renew-vless ;;
     8) clear ; cek-vless ;;
-    
+
     9) clear ; add-tr ;;
     10) clear ; del-tr ;;
     11) clear ; renew-tr ;;
     12) clear ; cek-tr ;;
-    
-    13) clear ; cert ;; 
-    
-    14) 
+
+    13) clear ; cert ;;
+
+    14)
         clear
         echo -e "${GREEN}Restarting Nginx...${NC}"
         systemctl restart nginx
@@ -144,15 +143,15 @@ case $opt in
         sleep 2
         menu
         ;;
-    15) 
+    15)
         clear
         echo -e "${RED}Rebooting VPS...${NC}"
         sleep 1
         reboot
         ;;
-    0) 
+    0)
         clear
-        exit 0 
+        exit 0
         ;;
     *)
         echo -e "${RED}Invalid input! Please select a valid number.${NC}"
