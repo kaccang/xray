@@ -143,6 +143,7 @@ wget -qO cek-tr "${REPO_MENU}/cek-tr"
 wget -qO cert "${REPO_MENU}/cert"
 wget -qO backup-xray "${REPO_MENU}/backup-xray"
 wget -qO sync-vps "${REPO_MENU}/sync-vps"
+wget -qO delete-sync "${REPO_MENU}/delete-sync"
 wget -qO xp "${REPO_MENU}/xp"
 
 chmod +x menu add-ws del-ws renew-ws cek-ws add-vless del-vless renew-vless cek-vless add-tr del-tr renew-tr cek-tr cert backup-xray sync-vps xp

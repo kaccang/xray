@@ -1,0 +1,146 @@
+#!/bin/bash
+
+CONF="/etc/xray/sync_slave.conf"
+FAIL=0
+INJECT_FOUND=0
+ROLLED_BACK=0
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo " MULTI VPS SYNC STATUS CHECK"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# --- MODE DETECT ---
+if [ -f "$CONF" ]; then
+    SLAVE_IP=$(cat "$CONF")
+    echo "[MODE] MASTER (SYNC ACTIVE)"
+    echo "[SLAVE] $SLAVE_IP"
+else
+    echo "[MODE] SINGLE / NOT CONFIGURED"
+fi
+
+echo ""
+echo "[*] Scanning lifecycle scripts..."
+
+shopt -s nullglob
+
+FILES=(/usr/bin/add-* /usr/bin/del-* /usr/bin/renew-*)
+
+for file in "${FILES[@]}"; do
+    if grep -qE '^[[:space:]]*sync-vps --run > /dev/null 2>&1 &$' "$file"; then
+        ((INJECT_FOUND++))
+    fi
+done
+
+echo "[FOUND] Injection in $INJECT_FOUND files"
+
+echo ""
+read -p "Proceed to REMOVE Multi-VPS Sync? (y/n): " yn
+[ "$yn" != "y" ] && exit 0
+
+echo ""
+echo "[*] Removing injection safely..."
+
+for file in "${FILES[@]}"; do
+    if [ -f "$file" ]; then
+
+        if grep -qE '^[[:space:]]*sync-vps --run > /dev/null 2>&1 &$' "$file"; then
+            
+            cp "$file" "$file.bak"
+
+            sed -i '/^[[:space:]]*sync-vps --run > \/dev\/null 2>&1 &$/d' "$file"
+
+            if ! bash -n "$file" 2>/dev/null; then
+                echo "[ROLLBACK] Syntax error in $file"
+                mv "$file.bak" "$file"
+                ((ROLLED_BACK++))
+            else
+                rm -f "$file.bak"
+            fi
+
+        fi
+    fi
+done
+
+sleep 1
+
+VERIFY=0
+for file in "${FILES[@]}"; do
+    if [ -f "$file" ]; then
+        if grep -qE '^[[:space:]]*sync-vps --run > /dev/null 2>&1 &$' "$file"; then
+            ((VERIFY++))
+        fi
+    fi
+done
+
+if [ "$VERIFY" -eq 0 ]; then
+    echo "[OK] Injection Removed"
+else
+    echo "[FAIL] Injection Still Exists!"
+    FAIL=1
+fi
+
+echo ""
+echo "[*] Removing sync config..."
+
+rm -f "$CONF"
+
+if [ ! -f "$CONF" ]; then
+    echo "[OK] sync_slave.conf Removed"
+else
+    echo "[FAIL] Failed removing config"
+    FAIL=1
+fi
+
+echo ""
+echo "[*] Killing zombie rsync..."
+
+pkill -f rsync
+pkill -f sync-vps
+
+sleep 1
+
+ZCHECK=$(ps aux | grep rsync | grep -v grep | wc -l)
+
+if [ "$ZCHECK" -eq 0 ]; then
+    echo "[OK] No rsync process running"
+else
+    echo "[WARN] rsync still running"
+fi
+
+echo ""
+echo "[*] Removing SSH trust..."
+
+if [ ! -z "$SLAVE_IP" ]; then
+    ssh-keygen -R $SLAVE_IP > /dev/null 2>&1
+    sed -i "/$SLAVE_IP/d" ~/.ssh/known_hosts
+fi
+
+echo ""
+echo "[*] Restarting Xray..."
+
+systemctl restart xray
+sleep 2
+
+XRAY=$(systemctl is-active xray)
+
+if [ "$XRAY" == "active" ]; then
+    echo "[OK] Xray running normally"
+else
+    echo "[FAIL] Xray failed to start"
+    FAIL=1
+fi
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+if [ "$ROLLED_BACK" -gt 0 ]; then
+    echo "[WARN] $ROLLED_BACK file restored due to syntax error"
+fi
+
+if [ "$FAIL" -eq 0 ]; then
+    echo "REMOVE SUCCESSFUL"
+else
+    echo "REMOVE COMPLETED WITH ERRORS"
+fi
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
