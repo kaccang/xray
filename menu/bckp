@@ -8,7 +8,6 @@ CONFIG_FILE="/etc/xray/config.json"
 HASH_FILE="/var/log/xray_backup_hash"
 # ====================
 
-NOW_HOUR=$(date +%H)
 DATE=$(date +%F-%H%M)
 BACKUP_NAME="xray-backup-$DATE.zip"
 TMP="/tmp/$BACKUP_NAME"
@@ -21,8 +20,12 @@ set -o pipefail
 CURRENT_HASH=$(sha256sum "$CONFIG_FILE" | awk '{print $1}')
 [ -f "$HASH_FILE" ] && OLD_HASH=$(cat "$HASH_FILE")
 
-# Kalau gak berubah, exit cepat
-[ "$CURRENT_HASH" == "$OLD_HASH" ] && exit 0
+# Exit hanya kalau:
+# - BUKAN force telegram
+# - DAN hash sama
+if [ "$SEND_TELEGRAM" != "1" ] && [ "$CURRENT_HASH" == "$OLD_HASH" ]; then
+    exit 0
+fi
 
 systemctl stop vnstat
 
@@ -32,7 +35,10 @@ ZIP_STATUS=$?
 systemctl start vnstat
 
 # Kalau zip gagal, exit
-[ "$ZIP_STATUS" -ne 0 ] && rm -f "$TMP" && exit 1
+if [ "$ZIP_STATUS" -ne 0 ]; then
+    rm -f "$TMP"
+    exit 1
+fi
 
 rclone copy "$TMP" "$S3_REMOTE"
 RCLONE_STATUS=$?
@@ -46,8 +52,8 @@ fi
 # Update hash hanya kalau backup sukses
 echo "$CURRENT_HASH" > "$HASH_FILE"
 
-# Telegram hanya jam 23
-if [ "$NOW_HOUR" == "23" ]; then
+# Telegram hanya kalau dipanggil cron dengan SEND_TELEGRAM=1
+if [ "$SEND_TELEGRAM" = "1" ]; then
     curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendDocument" \
       -F chat_id="$TELEGRAM_CHAT_ID" \
       -F document=@"$TMP" \

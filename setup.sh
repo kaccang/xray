@@ -179,9 +179,17 @@ echo -e "\u001B[1;32m[6/7] Setting Up Cronjobs...\u001B[0m"
 echo "0 0 * * * root /usr/bin/xp" > /etc/cron.d/xray_expired
 chmod 644 /etc/cron.d/xray_expired
 
-# Auto Backup XRAY S3+Tele at 02:00
-echo "0 2 * * * root /usr/bin/backup-xray --auto" > /etc/cron.d/xray_autobackup
+# Auto Backup XRAY v1 at 02:00
+echo "0 2 * * * root /usr/bin/backup-xray" > /etc/cron.d/xray_autobackup
 chmod 644 /etc/cron.d/xray_autobackup
+
+# Auto Backup XRAY v2 Watcher every 5 minutes (NO TELEGRAM)
+echo "*/5 * * * * root SEND_TELEGRAM=0 /usr/bin/bckp" > /etc/cron.d/xray_watch
+chmod 644 /etc/cron.d/xray_watch
+
+# Auto Backup XRAY v2 at 23:00 (WITH TELEGRAM)
+echo "0 23 * * * root SEND_TELEGRAM=1 /usr/bin/bckp" > /etc/cron.d/xray_backup_23
+chmod 644 /etc/cron.d/xray_backup_23
 
 # Auto Renew SSL Cert every 1st of the month at 04:00
 cat > /etc/cron.d/xray_cert_renew << EOF
