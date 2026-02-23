@@ -9,6 +9,11 @@ echo -e "\u001B[1;36m━━━━━━━━━━━━━━━━━━━�
 echo -e "\u001B[1;32m      XRAY SERVER AUTO INSTALLER          \u001B[0m"
 echo -e "\u001B[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
 
+# Nonaktifkan IPv6 SEMENTARA (hindari error SSL github)
+echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
+echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6
+
+
 # 1. Input Domain di awal biar bisa ditinggal tidur
 read -rp "Masukkan Domain VPS Anda (contoh: sg1.domain.com): " domain
 echo "$domain" > /root/domain
@@ -215,6 +220,9 @@ systemctl restart nginx
 systemctl enable nginx
 systemctl restart xray
 systemctl enable xray
+
+echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6
+echo 0 > /proc/sys/net/ipv6/conf/default/disable_ipv6
 
 clear
 echo -e "\u001B[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001B[0m"
