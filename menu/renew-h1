@@ -1,0 +1,86 @@
+#!/bin/bash
+
+CONFIG="/etc/xray/config.json"
+
+YELLOW='\e[1;33m'
+GREEN='\e[0;32m'
+WHITE='\e[1;37m'
+CYAN='\e[1;36m'
+NC='\e[0m'
+
+# Pakai tanggal hari ini (00:00) biar gak ke-detect H-1 terlalu cepat
+today_date=$(date +%Y-%m-%d)
+today_ts=$(date -d "$today_date" +%s)
+
+declare -a u
+declare -a e
+declare -a t
+
+clear
+echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}  USER AKAN EXPIRED BESOK (H-1)${NC}"
+echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+
+while read line; do
+  user=$(echo "$line" | awk '{print $2}')
+  exp=$(echo "$line" | awk '{print $3}')
+  type=$(echo "$line" | awk '{print $1}')
+
+  exp_ts=$(date -d "$exp" +%s)
+  diff=$(( (exp_ts - today_ts) / 86400 ))
+
+  # H-1 ONLY (besok expired)
+  if [[ $diff -eq 1 ]]; then
+    case $type in
+      "###") proto="VMESS" ;;
+      "#&")  proto="VLESS" ;;
+      "#!")  proto="TROJAN" ;;
+    esac
+
+    u+=("$user")
+    e+=("$exp")
+    t+=("$type")
+
+    printf "${YELLOW}%2d. %-12s | %-6s | %s${NC}\n" \
+    "${#u[@]}" "$user" "$proto" "$exp"
+  fi
+done < <(grep -E '^### |^#& |^#! ' "$CONFIG")
+
+if [[ ${#u[@]} -eq 0 ]]; then
+  echo "Tidak ada user yang expired besok."
+  echo ""
+  read -n 1 -s -r -p "Press any key to back on menu"
+  menu
+  exit
+fi
+
+echo ""
+read -p "Select number to renew : " num
+[[ -z "$num" ]] && menu
+
+user=${u[$((num-1))]}
+exp=${e[$((num-1))]}
+type=${t[$((num-1))]}
+
+read -p "Extend days : " masaaktif
+
+# ====== LOGIC RENEW ASLI LU ======
+now=$(date +%Y-%m-%d)
+d1=$(date -d "$exp" +%s)
+d2=$(date -d "$now" +%s)
+exp2=$(( (d1 - d2) / 86400 ))
+exp3=$(($exp2 + $masaaktif))
+exp4=$(date -d "$exp3 days" +"%Y-%m-%d")
+
+sed -i "/^$type $user/c$type $user $exp4" "$CONFIG"
+
+systemctl restart xray > /dev/null 2>&1
+
+echo ""
+echo -e "${GREEN}Renew Success${NC}"
+echo "Client Name : $user"
+echo "Expired On  : $exp4"
+echo ""
+read -n 1 -s -r -p "Press any key to back on menu"
+menu
