@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# ==========================================
+# Color
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+# ==========================================
+
+clear
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}        XRAY USER CHECK MENU       ${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e " ${YELLOW}[1]${NC} Check VMess User"
+echo -e " ${YELLOW}[2]${NC} Check VLess User"
+echo -e " ${YELLOW}[3]${NC} Check Trojan User"
+echo -e " ${RED}[4]${NC} Back to Main Menu"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+read -p " Select menu [1-4] : " opt
+
+case $opt in
+    1)
+        clear
+        /usr/bin/user-ws
+        ;;
+    2)
+        clear
+        /usr/bin/user-vless
+        ;;
+    3)
+        clear
+        /usr/bin/user-tr
+        ;;
+    4)
+        clear
+        menu
+        ;;
+    *)
+        echo -e "${RED}Invalid input!${NC}"
+        sleep 1
+        user-xray
+        ;;
+esac
