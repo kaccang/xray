@@ -150,8 +150,12 @@ wget -O backup-xray "${REPO_MENU}/backup-xray"
 wget -O sync-vps "${REPO_MENU}/sync-vps"
 wget -O delete-sync "${REPO_MENU}/delete-sync"
 wget -O xp "${REPO_MENU}/xp"
+wget -O /usr/bin/user-ws "${REPO_MENU}/user-ws"
+wget -O /usr/bin/user-vless "${REPO_MENU}/user-vless"
+wget -O /usr/bin/user-tr "${REPO_MENU}/user-tr"
+wget -O /usr/bin/user-xray "${REPO_MENU}/user-xray"
 
-chmod +x menu add-ws del-ws renew-ws cek-ws add-vless del-vless renew-vless cek-vless add-tr del-tr renew-tr cek-tr cert backup-xray sync-vps xp
+chmod +x menu add-ws del-ws renew-ws cek-ws add-vless del-vless renew-vless cek-vless add-tr del-tr renew-tr cek-tr cert backup-xray sync-vps xp user-ws user-vless user-tr user-xray
 cd ~
 
 # Pasang autostart menu di .profile (tanpa cek)

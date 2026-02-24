@@ -1,0 +1,107 @@
+#!/bin/bash
+
+CONFIG="/etc/xray/config.json"
+clear
+
+# Ambil user & exp tanpa duplikat
+mapfile -t entries < <(grep -E '^### ' "$CONFIG" | awk '!seen[$2]++')
+
+echo ""
+echo "╔══════════════════════════════╗"
+echo "║        MENU CEK VMESS        ║"
+echo "╚══════════════════════════════╝"
+
+# Tampilkan daftar user
+for i in "${!entries[@]}"; do
+  user=$(echo "${entries[$i]}" | awk '{print $2}')
+  printf "  %2d. %s\n" $((i+1)) "$user"
+done
+
+echo ""
+read -p ">> Pilih nomor akun [1 - ${#entries[@]}]: " num
+
+# Validasi input
+if [[ "$num" -lt 1 || "$num" -gt "${#entries[@]}" ]]; then
+  echo "Nomor tidak valid!"
+  exit 1
+fi
+
+# Ambil user & exp
+line="${entries[$((num-1))]}"
+user=$(echo "$line" | awk '{print $2}')
+exp=$(echo "$line" | awk '{print $3}')
+
+# ===========================
+# FIX UUID EXTRACTION
+# ===========================
+uuid=$(awk -v u="$user" '
+$0 ~ "^### "u" " {found=1; next}
+found && /"id":/ {
+    match($0, /"id": *"([^"]+)"/, a)
+    print a[1]
+    exit
+}' "$CONFIG")
+
+domain=$(cat /etc/xray/domain)
+
+# VMESS JSON TLS
+VMESS_WS=$(cat <<EOF
+{
+"v":"2",
+"ps":"$user TLS",
+"add":"$domain",
+"port":"443",
+"id":"$uuid",
+"aid":"0",
+"net":"ws",
+"path":"/vmess",
+"type":"none",
+"host":"$domain",
+"tls":"tls"
+}
+EOF
+)
+
+# VMESS JSON NON TLS
+VMESS_NON_TLS=$(cat <<EOF
+{
+"v":"2",
+"ps":"$user NTLS",
+"add":"$domain",
+"port":"80",
+"id":"$uuid",
+"aid":"0",
+"net":"ws",
+"path":"/vmess",
+"type":"none",
+"host":"$domain",
+"tls":"none"
+}
+EOF
+)
+
+vmesslink1="vmess://$(echo -n "$VMESS_WS" | base64 -w 0)"
+vmesslink2="vmess://$(echo -n "$VMESS_NON_TLS" | base64 -w 0)"
+
+clear
+
+echo -e "───────────────────"
+echo -e "     XRAY VMESS ACCOUNT"
+echo -e "───────────────────"
+echo -e "Remarks     : $user"
+echo -e "Domain      : $domain"
+echo -e "Port TLS    : 443"
+echo -e "Port NTLS   : 80"
+echo -e "Encryption  : none"
+echo -e "Path        : /vmess"
+echo -e "Expired On  : $exp"
+echo -e "───────────────────"
+echo -e "TLS Link:"
+echo -e "$vmesslink1"
+echo -e "───────────────────"
+echo -e "Non-TLS Link:"
+echo -e "$vmesslink2"
+echo -e "───────────────────"
+
+read -n 1 -s -r -p "Press any key to back on menu"
+menu

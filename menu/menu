@@ -108,8 +108,9 @@ echo -e " ${YELLOW}[12]${NC} Check Trojan Login"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e " ${CYAN}[ SYSTEM SETTINGS ]${NC}"
 echo -e " ${YELLOW}[13]${NC} Renew Domain Certificate"
-echo -e " ${YELLOW}[14]${NC} Restart Nginx & XRay Services"
-echo -e " ${YELLOW}[15]${NC} Reboot VPS"
+echo -e " ${YELLOW}[14]${NC} Renew Domain Certificate"
+echo -e " ${YELLOW}[15]${NC} Restart Nginx & XRay Services"
+echo -e " ${YELLOW}[16]${NC} Reboot VPS"
 echo -e "  ${RED}[0]${NC} Exit Menu"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
@@ -132,10 +133,12 @@ case $opt in
     10) clear ; del-tr ;;
     11) clear ; renew-tr ;;
     12) clear ; cek-tr ;;
+    
+    13) clear ; user-xray;;
 
-    13) clear ; cert ;;
+    14) clear ; cert ;;
 
-    14)
+    15)
         clear
         echo -e "${GREEN}Restarting Nginx...${NC}"
         systemctl restart nginx
@@ -145,7 +148,7 @@ case $opt in
         sleep 2
         menu
         ;;
-    15)
+    16)
         clear
         echo -e "${RED}Rebooting VPS...${NC}"
         sleep 1
