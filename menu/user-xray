@@ -16,7 +16,8 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 echo -e " ${YELLOW}[1]${NC} Check VMess User"
 echo -e " ${YELLOW}[2]${NC} Check VLess User"
 echo -e " ${YELLOW}[3]${NC} Check Trojan User"
-echo -e " ${RED}[4]${NC} Back to Main Menu"
+echo -e " ${YELLOW}[4]${NC} H-1 Expired Alert"
+echo -e " ${RED}[5]${NC} Back to Main Menu"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 read -p " Select menu [1-4] : " opt
@@ -34,7 +35,12 @@ case $opt in
         clear
         /usr/bin/user-tr
         ;;
+    
     4)
+        clear
+        /usr/bin/renew-h1
+        ;;
+    5)
         clear
         menu
         ;;
